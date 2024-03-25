@@ -6,9 +6,8 @@ class CartManager {
         this.path = path;
         this.ultId = 0;
 
-        //Cargar los carritos almacenados en el archivo
+        // Cargar los carritos almacenados en el archivo
         this.cargarCarritos();
-
     }
 
     async cargarCarritos() {
@@ -16,63 +15,69 @@ class CartManager {
             const data = await fs.readFile(this.path, "utf-8");
             this.carts = JSON.parse(data);
             if (this.carts.length > 0) {
-                //Verifico si hay por lo menos un carrito creado. 
                 this.ultId = Math.max(...this.carts.map(cart => cart.id));
-                //Utilizo el método map para crear un array qeu solo tengo los identificadores del carrito y con math.max obtengo el mayor. 
             }
         } catch (error) {
-            console.log("Error al crear los carritos: ", error);
-            //Si no existe el archivo, lo voy a crear: 
-            await this.guardarCarritos();
+            console.error("Error al cargar los carritos: ", error);
+            throw new Error("Error al cargar los carritos");
         }
     }
 
     async guardarCarritos() {
-        await fs.writeFile(this.path, JSON.stringify(this.carts, null, 2));
+        try {
+            await fs.writeFile(this.path, JSON.stringify(this.carts, null, 2));
+        } catch (error) {
+            console.error("Error al guardar los carritos: ", error);
+            throw new Error("Error al guardar los carritos");
+        }
     }
 
     async crearCarrito() {
-        const nuevoCarrito = {
-            id: ++this.ultId,
-            products: []
+        try {
+            const nuevoCarrito = {
+                id: ++this.ultId,
+                products: []
+            }
+
+            this.carts.push(nuevoCarrito);
+
+            await this.guardarCarritos();
+            return nuevoCarrito;
+        } catch (error) {
+            console.error("Error al crear un nuevo carrito: ", error);
+            throw new Error("Error al crear un nuevo carrito");
         }
-
-        this.carts.push(nuevoCarrito);
-
-        //Guardamos el array en el archivo: 
-        await this.guardarCarritos();
-        return nuevoCarrito;
     }
 
     async getCarritoById(carritoId) {
         try {
             const carrito = this.carts.find(c => c.id === carritoId);
-
             if (!carrito) {
-                console.log("No hay carrito con ese id");
-                return;
+                throw new Error("No se encontró el carrito con ese ID");
             }
-
             return carrito;
         } catch (error) {
-            console.log("Error al obtener un carrito por id: ", error);
+            console.error("Error al obtener un carrito por ID: ", error);
+            throw new Error("Error al obtener un carrito por ID");
         }
     }
 
     async agregarProductoAlCarrito(carritoId, productoId, quantity = 1) {
-        const carrito = await this.getCarritoById(carritoId);
-        const existeProducto = carrito.products.find(p => p.product === productoId);
-
-        if (existeProducto) {
-            existeProducto.quantity += quantity;
-        } else {
-            carrito.products.push({ product: productoId, quantity });
+        try {
+            const carrito = await this.getCarritoById(carritoId);
+            const existeProducto = carrito.products.find(p => p.product === productoId);
+            if (existeProducto) {
+                existeProducto.quantity += quantity;
+            } else {
+                carrito.products.push({ product: productoId, quantity });
+            }
+            await this.guardarCarritos();
+            return carrito;
+        } catch (error) {
+            console.error("Error al agregar producto al carrito: ", error);
+            throw new Error("Error al agregar producto al carrito");
         }
-
-        await this.guardarCarritos();
-        return carrito;
     }
 }
-
 
 module.exports = CartManager;
